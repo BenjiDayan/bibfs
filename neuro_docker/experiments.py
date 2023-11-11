@@ -4,7 +4,9 @@ import glob
 import run
 import multiprocessing
 
-run.use_cores(multiprocessing.cpu_count() - 2)
+# there would be 32 cpus
+# let's not be a hog.
+run.use_cores(16)
 
 ######################################################################
 ######################################################################
@@ -274,6 +276,12 @@ run.add(
 # running algorithms
 run.group("algo")
 
+# Benji: e.g.
+# bash-5.1# code/release/dist --algo bfs_bi_always_swap --pairs 3 --seed 123 --no-header input_data/adj_array/ex10
+# bfs_bi_always_swap,123,1,276,5,0.007654,413
+# bfs_bi_always_swap,123,1450,639,15,0.093688,29464
+# bfs_bi_always_swap,123,818,1438,12,0.060425,26994
+
 # computing shortest paths
 dist_command = (
     "code/release/dist --algo [[algo]] --pairs [[pairs]] --seed [[seed]] "
@@ -284,7 +292,7 @@ run.add(
     "dist",
     dist_command,
     {
-        "algo": ["bfs", "bfs_bi_balanced", "bfs_bi_always_swap"],
+        "algo": ["bfs", "bfs_bi_balanced", "bfs_bi_always_swap", "bfs_bi_node", "bfs_bi_node_balanced"],
         "pairs": 100,
         "seed": 3404785993,
         "input": input_names,
@@ -293,54 +301,54 @@ run.add(
     header_command="code/release/dist --only-header",
 )
 
-# diameter bounds
-run.add(
-    "diameter_bounds",
-    "code/release/diameter_bounds --algo [[algo]] --no-header input_data/adj_array/[[input]]",
-    {"algo": ["double_sweep", "four_sweep"], "input": input_names},
-    stdout_file="output_data/diameter_bounds/[[input]].csv",
-    header_command="code/release/diameter_bounds --only-header",
-)
-
-# diameter exact
-run.add(
-    "diameter_exact",
-    "timeout [[timeout]] code/release/diameter_exact --algo [[algo]] --no-header input_data/adj_array/[[input]]",
-    {"algo": ["ifub_foursweephd", "ifub_hd"], "input": input_names, "timeout": 1800},
-    allowed_return_codes=[0, 124, -15],
-    stdout_file="output_data/diameter_exact/[[input]].csv",
-    stdout_mod=lambda out, res: (
-        out if res.returncode == 0 else "[[algo]],0,0,[[timeout]]"
-    ),
-    header_command="code/release/diameter_exact --only-header",
-)
-
-# enumerating cliques
-run.add(
-    "cliques",
-    "timeout [[timeout]] code/release/cliques --no-header input_data/metis/[[input]].graph",
-    {"input": input_names, "timeout": 1800},
-    allowed_return_codes=[0, 124, -15],
-    stdout_file="output_data/cliques/[[input]].csv",
-    stdout_mod=lambda out, res: (out if res.returncode == 0 else "0,0,[[timeout]]"),
-    header_command="code/release/cliques --only-header",
-)
-
-# finding chromatic number (for all networks, including degree scaling)
-run.add(
-    "coloring",
-    "timeout [[timeout]] code/release/coloring --no-header input_data/adj_array/[[input]]",
-    {"input": input_names_all, "timeout": 1800},
-    allowed_return_codes=[0, 124, -15],
-    stdout_file="output_data/coloring/[[input]].csv",
-    stdout_mod=lambda out, res: (
-        out if res.returncode == 0 else "-1,-1,[[timeout]],[[timeout]]"
-    ),
-    header_command="code/release/coloring --only-header",
-)
-
-# simple algorithms
-simple_experiment(["vertex_cover_dominance", "louvain"], input_names)
+# # diameter bounds
+# run.add(
+#     "diameter_bounds",
+#     "code/release/diameter_bounds --algo [[algo]] --no-header input_data/adj_array/[[input]]",
+#     {"algo": ["double_sweep", "four_sweep"], "input": input_names},
+#     stdout_file="output_data/diameter_bounds/[[input]].csv",
+#     header_command="code/release/diameter_bounds --only-header",
+# )
+#
+# # diameter exact
+# run.add(
+#     "diameter_exact",
+#     "timeout [[timeout]] code/release/diameter_exact --algo [[algo]] --no-header input_data/adj_array/[[input]]",
+#     {"algo": ["ifub_foursweephd", "ifub_hd"], "input": input_names, "timeout": 1800},
+#     allowed_return_codes=[0, 124, -15],
+#     stdout_file="output_data/diameter_exact/[[input]].csv",
+#     stdout_mod=lambda out, res: (
+#         out if res.returncode == 0 else "[[algo]],0,0,[[timeout]]"
+#     ),
+#     header_command="code/release/diameter_exact --only-header",
+# )
+#
+# # enumerating cliques
+# run.add(
+#     "cliques",
+#     "timeout [[timeout]] code/release/cliques --no-header input_data/metis/[[input]].graph",
+#     {"input": input_names, "timeout": 1800},
+#     allowed_return_codes=[0, 124, -15],
+#     stdout_file="output_data/cliques/[[input]].csv",
+#     stdout_mod=lambda out, res: (out if res.returncode == 0 else "0,0,[[timeout]]"),
+#     header_command="code/release/cliques --only-header",
+# )
+#
+# # finding chromatic number (for all networks, including degree scaling)
+# run.add(
+#     "coloring",
+#     "timeout [[timeout]] code/release/coloring --no-header input_data/adj_array/[[input]]",
+#     {"input": input_names_all, "timeout": 1800},
+#     allowed_return_codes=[0, 124, -15],
+#     stdout_file="output_data/coloring/[[input]].csv",
+#     stdout_mod=lambda out, res: (
+#         out if res.returncode == 0 else "-1,-1,[[timeout]],[[timeout]]"
+#     ),
+#     header_command="code/release/coloring --only-header",
+# )
+#
+# # simple algorithms
+# simple_experiment(["vertex_cover_dominance", "louvain"], input_names)
 
 run.run()
 
