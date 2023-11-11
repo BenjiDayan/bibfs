@@ -4,7 +4,7 @@
 #include "bfs/bfs_bi_always_swap.hpp"
 #include "bfs/bfs_bi_balanced.hpp"
 #include "bfs/bfs_bi_node.hpp"
-#include "bfs/bfs_bi_node_balanced.hpp"
+//#include "bfs/bfs_bi_node_balanced.hpp"
 #include "framework/app.hpp"
 #include "framework/graph.hpp"
 #include "framework/random.hpp"
@@ -69,9 +69,10 @@ void dist(std::filesystem::path input_file, std::string algo,
   // Benji: add some dists here
   else if (algo == "bfs_bi_node") {
     compute_dist = dist_algo<BFSBiNode>(G);
-  } else if (algo == "bfs_bi_node_balanced") {
-    compute_dist = dist_algo<BFSBiNodeBalanced>(G);
   }
+//  else if (algo == "bfs_bi_node_balanced") {
+//    compute_dist = dist_algo<BFSBiNodeBalanced>(G);
+//  }
 
 
   // compute distance

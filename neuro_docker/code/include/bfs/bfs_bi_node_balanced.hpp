@@ -1,10 +1,10 @@
 #pragma once
 
-#include "bfs/bfs_bi_node.hpp"
+#include "bfs/bfs_bi.hpp"
 
-class BFSBiNodeBalanced : public BFSBiNode {
+class BFSBiNodeBalanced : public BFSBi {
  public:
-  BFSBiNodeBalanced(unsigned n) : BFSBiNode(n) {}
+  BFSBiNodeBalanced(unsigned n) : BFSBi(n) {}
 
  protected:
   void update_cost_node_found(State& S, node v, const Graph& G) const;

@@ -11,7 +11,7 @@ unsigned BFSBiNode::operator()(const Graph& G, node s, node t) {
 
   m_S_fward.init(s);
   m_S_bward.init(t);
-  
+
   update_cost_node_found(m_S_fward, s, G);
   update_cost_node_found(m_S_bward, t, G);
 
@@ -19,14 +19,10 @@ unsigned BFSBiNode::operator()(const Graph& G, node s, node t) {
   update_cost_start_new_layer(*S);
 
   while (!m_S_fward.Q.empty() && !m_S_bward.Q.empty()) {
-//    if (S->layer < S->dist[S->Q.front()]) {
-//      // new layer in current search -> choose direction, reset cost
-//      S->layer++;
-//      S = choose_direction(m_S_fward, m_S_bward);
-//      update_cost_start_new_layer(*S);
-//    }
+    // Don't switch direction on new layer, rather on every new node
     if (S->layer < S->dist[S->Q.front()]) {
         S->layer++;
+        update_cost_start_new_layer(*S);
     }
     S = choose_direction(m_S_fward, m_S_bward);
     // Never zero out the cost - using Ulysse's total seen size.
@@ -55,29 +51,39 @@ unsigned BFSBiNode::operator()(const Graph& G, node s, node t) {
   return std::numeric_limits<unsigned>::max();
 }
 
-unsigned BFSBiNode::search_space() const { return m_search_space; }
+void BFSBiBalanced::update_cost_node_found(State& S, node v,
+                                               const Graph& G) const {
+  S.cost += G.degree(v);
+}
 
-BFSBiNode::State::State(unsigned n) : dist(n), node_found(n, false) {}
-
-void BFSBiNode::State::init(node v) {
-  // tidy up previous search
-  for (node u : dirty_nodes) {
-    node_found[u] = false;
-  }
-  dirty_nodes.clear();
-
-  // init the new search
-  Q = std::queue<node>();
-  layer = 0;
-  cost = 0;
-  Q.push(v);
-  node_found[v] = true;
-  dist[v] = 0;
-  dirty_nodes.push_back(v);
+void BFSBiBalanced::update_cost_start_new_layer(State& S) const {
+//  S.cost = 0;
 }
 
 
-BFSBiNode::State* BFSBiNode::choose_direction(State& S_fward,
-                                              State& S_bward) const {
-  return S_fward.cost < S_bward.cost ? &S_fward : &S_bward;
-}
+//unsigned BFSBiNode::search_space() const { return m_search_space; }
+//
+//BFSBiNode::State::State(unsigned n) : dist(n), node_found(n, false) {}
+//
+//void BFSBiNode::State::init(node v) {
+//  // tidy up previous search
+//  for (node u : dirty_nodes) {
+//    node_found[u] = false;
+//  }
+//  dirty_nodes.clear();
+//
+//  // init the new search
+//  Q = std::queue<node>();
+//  layer = 0;
+//  cost = 0;
+//  Q.push(v);
+//  node_found[v] = true;
+//  dist[v] = 0;
+//  dirty_nodes.push_back(v);
+//}
+//
+//
+//BFSBiNode::State* BFSBiNode::choose_direction(State& S_fward,
+//                                              State& S_bward) const {
+//  return S_fward.cost < S_bward.cost ? &S_fward : &S_bward;
+//}

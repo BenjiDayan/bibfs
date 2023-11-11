@@ -21,3 +21,32 @@ WARNING: unexpected return code (105) for command: code/release/dist --algo bfs_
 ```
 
 But I thinkt he first three did work fine.
+
+
+
+## 11/11/2023
+
+### Trying to compile our bfs code
+
+```Consolidate compiler generated dependencies of target deg_distr
+[ 54%] Built target deg_distr
+Consolidate compiler generated dependencies of target dist
+[ 55%] Building CXX object CMakeFiles/dist.dir/cli/dist.cpp.o
+[ 56%] Linking CXX executable dist
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: CMakeFiles/dist.dir/cli/dist.cpp.o: warning: relocation against `_ZTV9BFSBiNode' in read-only section `.text._ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI9BFSBiNodeEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation[_ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI9BFSBiNodeEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation]'
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: CMakeFiles/dist.dir/cli/dist.cpp.o: in function `dist(std::filesystem::__cxx11::path, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, unsigned int)':
+dist.cpp:(.text+0x1566): undefined reference to `vtable for BFSBiNodeBalanced'
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: dist.cpp:(.text+0x181b): undefined reference to `vtable for BFSBiNode'
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: CMakeFiles/dist.dir/cli/dist.cpp.o: in function `std::_Function_handler<std::pair<unsigned int, unsigned int> (unsigned int, unsigned int), dist_algo<BFSBiNodeBalanced>(Graph const&)::{lambda(unsigned int, unsigned int)#1}>::_M_manager(std::_Any_data&, std::_Any_data const&, std::_Manager_operation)':
+dist.cpp:(.text._ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI17BFSBiNodeBalancedEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation[_ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI17BFSBiNodeBalancedEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation]+0xa6): undefined reference to `vtable for BFSBiNodeBalanced'
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: CMakeFiles/dist.dir/cli/dist.cpp.o: in function `std::_Function_handler<std::pair<unsigned int, unsigned int> (unsigned int, unsigned int), dist_algo<BFSBiNode>(Graph const&)::{lambda(unsigned int, unsigned int)#1}>::_M_manager(std::_Any_data&, std::_Any_data const&, std::_Manager_operation)':
+dist.cpp:(.text._ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI9BFSBiNodeEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation[_ZNSt17_Function_handlerIFSt4pairIjjEjjEZ9dist_algoI9BFSBiNodeEDaRK5GraphEUljjE_E10_M_managerERSt9_Any_dataRKSA_St18_Manager_operation]+0xa6): undefined reference to `vtable for BFSBiNode'
+/usr/lib/gcc/x86_64-alpine-linux-musl/11.2.1/../../../../x86_64-alpine-linux-musl/bin/ld: warning: creating DT_TEXTREL in a PIE
+collect2: error: ld returned 1 exit status
+make[2]: *** [CMakeFiles/dist.dir/build.make:98: dist] Error 1
+make[1]: *** [CMakeFiles/Makefile2:524: CMakeFiles/dist.dir/all] Error 2
+make: *** [Makefile:146: all] Error 2
+/ext_val
+```
+
+For now we will get rid of bfs_bi_node_balanced (.hpp, .cpp) as it's distracting and I don't know the original intention anyway
