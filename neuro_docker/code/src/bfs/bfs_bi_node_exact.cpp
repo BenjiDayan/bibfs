@@ -3,6 +3,8 @@
 #include <limits>
 #include <memory>
 
+//BFSBiNodeExact::BFSBiNodeExact(unsigned n) : m_S_fward(n), m_S_bward(n) {}
+
 unsigned BFSBiNodeExact::operator()(const Graph& G, node s, node t) {
   m_search_space = 0;
   if (s == t) return 0;
@@ -16,11 +18,17 @@ unsigned BFSBiNodeExact::operator()(const Graph& G, node s, node t) {
   State* S = choose_direction(m_S_fward, m_S_bward);
   update_cost_start_new_layer(*S);
 
-  while (!m_S_fward.Q.empty() && !m_S_bward.Q.empty()) {
+  while (!m_S_fward.Q.empty() && !m_S_bward.Q.empty()
+         && !m_S_fward.Q_next.empty() && !m_S_bward.Q_next.empty()) {
     // Don't switch direction on new layer, rather on every new node
-    if (S->layer < S->dist[S->Q.front()]) {
-        S->layer++;
-        update_cost_start_new_layer(*S);
+//    if (S->layer < S->dist[S->Q1.front()]) {
+//        S->layer++;
+//        update_cost_start_new_layer(*S);
+//    }
+    if (S->Q.empty()) {
+      std::swap(S->Q, S->Q_next);
+      S->layer++;
+      update_cost_start_new_layer(*S);
     }
     S = choose_direction(m_S_fward, m_S_bward);
     // Never zero out the cost - using Ulysse's total seen size.
@@ -31,7 +39,7 @@ unsigned BFSBiNodeExact::operator()(const Graph& G, node s, node t) {
       m_search_space++;
       if (!S->node_found[u]) {
         // found a new node u
-        S->Q.push(u);
+        S->Q_next.push(u);
         S->node_found[u] = true;
         S->dist[u] = S->dist[v] + 1;
         update_cost_node_found(*S, u, G);
@@ -75,3 +83,22 @@ void BFSBiNodeExact::update_cost_node_found(State& S, node v,
 void BFSBiNodeExact::update_cost_start_new_layer(State& S) const {
 //  S.cost = 0;
 }
+
+
+//void BFSBiNodeExact::State::init(node v) {
+//  // tidy up previous search
+//  for (node u : dirty_nodes) {
+//    node_found[u] = false;
+//  }
+//  dirty_nodes.clear();
+//
+//  // init the new search
+//  Q = std::queue<node>();
+//  Q_next = std::queue<node>();
+//  layer = 0;
+//  cost = 0;
+//  Q1.push(v);
+//  node_found[v] = true;
+//  dist[v] = 0;
+//  dirty_nodes.push_back(v);
+//}

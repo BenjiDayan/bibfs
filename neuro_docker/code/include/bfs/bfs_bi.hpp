@@ -24,6 +24,7 @@ class BFSBi {
     std::vector<unsigned> dist;
     std::vector<bool> node_found;
     std::queue<node> Q;
+    std::queue<node> Q_next; // Only used in bfs_bi_node_exact
     unsigned layer;
     unsigned cost;
     std::vector<node> dirty_nodes;

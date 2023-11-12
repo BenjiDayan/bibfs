@@ -62,6 +62,7 @@ void BFSBi::State::init(node v) {
 
   // init the new search
   Q = std::queue<node>();
+  Q_next = std::queue<node>();
   layer = 0;
   cost = 0;
   Q.push(v);
