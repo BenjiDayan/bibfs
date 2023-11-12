@@ -46,7 +46,9 @@ class BFSBi {
   // the current search direction.
   virtual void update_cost_start_new_layer(State& S) const = 0;
 
- private:
+ // Benji: We have to make this non-private? Otherwise bfs_bi_node.cpp can't
+ // use it in its own operator() method
+// private:
   State m_S_fward;
   State m_S_bward;
   unsigned m_search_space;

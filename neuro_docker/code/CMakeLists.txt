@@ -47,6 +47,8 @@ set(HEADERS
   include/bfs/bfs_bi.hpp
   include/bfs/bfs_bi_balanced.hpp
   include/bfs/bfs_bi_always_swap.hpp
+  include/bfs/bfs_bi_node.hpp
+  # include/bfs/bfs_bi_node_balanced.hpp
   include/vertex_cover/dominance.hpp
   include/local_search/louvain.hpp
   include/generator/random_graph.hpp
@@ -78,6 +80,8 @@ set(SOURCE_FILES
   src/bfs/bfs_bi.cpp
   src/bfs/bfs_bi_balanced.cpp
   src/bfs/bfs_bi_always_swap.cpp
+  src/bfs/bfs_bi_node.cpp
+  # src/bfs/bfs_bi_node_balanced.cpp
   src/vertex_cover/dominance.cpp
   src/local_search/louvain.cpp
   src/generator/random_graph.cpp

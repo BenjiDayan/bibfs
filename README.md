@@ -50,3 +50,20 @@ make: *** [Makefile:146: all] Error 2
 ```
 
 For now we will get rid of bfs_bi_node_balanced (.hpp, .cpp) as it's distracting and I don't know the original intention anyway
+
+`code/release/dist --algo bfs_bi_balanced --pairs 4 --seed 123 --no-header input_data/adj_array/ex10`
+code/release/dist --algo bfs_bi_node --pairs 4 --seed 123 --no-header input_data/adj_array/ex10
+
+Ok so now what do the numbers mean?
+
+dist(input file, algo, nr_pairs): 
+- randomly picks a nr_pairs (i, j) in (n-1)
+- outputs: bfs_bi_node,123,1214,772,14,0.061316,22124
+- algo, seed, s, t, res.first, timer, res.second
+- res = compute_dist(s,t)
+- compute_dist = dist_algo<BFSBiBalanced>(G);
+    -     unsigned dist = algo(G, s, t);
+          return std::make_pair(dist, algo.search_space());
+    - m_search_space is the total number of nodes that have been added to a queue
+
+

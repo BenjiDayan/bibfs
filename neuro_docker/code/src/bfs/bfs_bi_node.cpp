@@ -3,8 +3,6 @@
 #include <limits>
 #include <memory>
 
-BFSBiNode::BFSBiNode(unsigned n) : m_S_fward(n), m_S_bward(n) {}
-
 unsigned BFSBiNode::operator()(const Graph& G, node s, node t) {
   m_search_space = 0;
   if (s == t) return 0;
@@ -51,12 +49,12 @@ unsigned BFSBiNode::operator()(const Graph& G, node s, node t) {
   return std::numeric_limits<unsigned>::max();
 }
 
-void BFSBiBalanced::update_cost_node_found(State& S, node v,
+void BFSBiNode::update_cost_node_found(State& S, node v,
                                                const Graph& G) const {
   S.cost += G.degree(v);
 }
 
-void BFSBiBalanced::update_cost_start_new_layer(State& S) const {
+void BFSBiNode::update_cost_start_new_layer(State& S) const {
 //  S.cost = 0;
 }
 
