@@ -4,7 +4,7 @@
 #include "bfs/bfs_bi_always_swap.hpp"
 #include "bfs/bfs_bi_balanced.hpp"
 #include "bfs/bfs_bi_node.hpp"
-//#include "bfs/bfs_bi_node_balanced.hpp"
+#include "bfs/bfs_bi_node_exact.hpp"
 #include "framework/app.hpp"
 #include "framework/graph.hpp"
 #include "framework/random.hpp"
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 
   std::string algo = "bfs";
   app.arg(algo, "--algo", "The algorithm that should be used.",
-          {"bfs", "bfs_bi_balanced", "bfs_bi_always_swap", "bfs_bi_node", "bfs_bi_node_balanced"});
+          {"bfs", "bfs_bi_balanced", "bfs_bi_always_swap", "bfs_bi_node", "bfs_bi_node_exact"});
 
   unsigned nr_pairs = 1;
   app.arg(nr_pairs, "--pairs", "Number of origin-destination pairs.");
@@ -70,9 +70,9 @@ void dist(std::filesystem::path input_file, std::string algo,
   else if (algo == "bfs_bi_node") {
     compute_dist = dist_algo<BFSBiNode>(G);
   }
-//  else if (algo == "bfs_bi_node_balanced") {
-//    compute_dist = dist_algo<BFSBiNodeBalanced>(G);
-//  }
+  else if (algo == "bfs_bi_node_exact") {
+    compute_dist = dist_algo<BFSBiNodeExact>(G);
+  }
 
 
   // compute distance

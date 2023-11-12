@@ -2,9 +2,10 @@
 
 #include "bfs/bfs_bi.hpp"
 
-class BFSBiNodeBalanced : public BFSBi {
+class BFSBiNodeExact : public BFSBi {
  public:
-  BFSBiNodeBalanced(unsigned n) : BFSBi(n) {}
+  BFSBiNodeExact(unsigned n) : BFSBi(n) {}
+  unsigned operator()(const Graph& G, node s, node t);
 
  protected:
   void update_cost_node_found(State& S, node v, const Graph& G) const;
