@@ -67,3 +67,16 @@ dist(input file, algo, nr_pairs):
     - m_search_space is the total number of nodes that have been added to a queue
 
 
+- before fixing the bfs_bi_node_exact_bug
+```
+bash-5.1# code/release/dist --algo bfs_bi_node --pairs 4 --seed 123 --no-header input_data/adj_array/ex10
+bfs_bi_node,123,1,276,5,0.007504,558
+bfs_bi_node,123,1450,639,15,0.076525,25178
+bfs_bi_node,123,818,1438,12,0.054504,23062
+bfs_bi_node,123,1214,772,14,0.051939,22124
+bash-5.1# code/release/dist --algo bfs_bi_node_exact --pairs 4 --seed 123 --no-header input_data/adj_array/ex10
+bfs_bi_node_exact,123,1,276,5,0.008456,575
+bfs_bi_node_exact,123,1450,639,15,0.079992,25205
+bfs_bi_node_exact,123,818,1438,12,0.055415,23089
+bfs_bi_node_exact,123,1214,772,14,0.059182,22213
+```

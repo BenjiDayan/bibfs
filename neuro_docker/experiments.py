@@ -292,7 +292,7 @@ run.add(
     "dist",
     dist_command,
     {
-        "algo": ["bfs", "bfs_bi_balanced", "bfs_bi_always_swap", "bfs_bi_node", "bfs_bi_node_balanced"],
+        "algo": ["bfs", "bfs_bi_balanced", "bfs_bi_always_swap", "bfs_bi_node", "bfs_bi_node_exact"],
         "pairs": 100,
         "seed": 3404785993,
         "input": input_names,

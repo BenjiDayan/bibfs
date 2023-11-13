@@ -18,18 +18,12 @@ unsigned BFSBiNodeExact::operator()(const Graph& G, node s, node t) {
   State* S = choose_direction(m_S_fward, m_S_bward);
   update_cost_start_new_layer(*S);
 
-  while (!m_S_fward.Q.empty() && !m_S_bward.Q.empty()
-         && !m_S_fward.Q_next.empty() && !m_S_bward.Q_next.empty()) {
-    // Don't switch direction on new layer, rather on every new node
+  while (!m_S_fward.Q.empty() && !m_S_bward.Q.empty()) {
+//    // Don't switch direction on new layer, rather on every new node
 //    if (S->layer < S->dist[S->Q1.front()]) {
 //        S->layer++;
 //        update_cost_start_new_layer(*S);
 //    }
-    if (S->Q.empty()) {
-      std::swap(S->Q, S->Q_next);
-      S->layer++;
-      update_cost_start_new_layer(*S);
-    }
     S = choose_direction(m_S_fward, m_S_bward);
     // Never zero out the cost - using Ulysse's total seen size.
 
@@ -69,6 +63,12 @@ unsigned BFSBiNodeExact::operator()(const Graph& G, node s, node t) {
           return output_dist;
         }
       }
+    }
+
+    if (S->Q.empty()) {
+      std::swap(S->Q, S->Q_next);
+      S->layer++;
+      update_cost_start_new_layer(*S);
     }
   }
 
