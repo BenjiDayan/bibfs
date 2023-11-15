@@ -103,6 +103,7 @@ set(EXECUTABLE_FILES
   cli/degeneracy.cpp
   cli/deg_distr.cpp
   cli/dist.cpp
+  cli/dist_specific.cpp
   cli/prepare_graph_formats.cpp
   cli/size.cpp
   cli/vertex_cover_dominance.cpp

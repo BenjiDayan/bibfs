@@ -40,4 +40,32 @@ So as it is, we choose_direction S = fwd or bwd at each layer exhaustion, which 
 Ahhh so One BFSBi object is instantiated, and possibly used multiple times. Maybe multiples times just for the same graph? .dirty_nodes is used to clean up after each operation. This really just cleans everything up.
 
 
+```bash
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_balanced --no-header input_data/adj_array/DD_g714
+bfs_bi_balanced,3404785993,9,27,5,0.010069,66
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_node --no-header input_data/adj_array/DD_g714
+bfs_bi_node,3404785993,9,27,6,0.011281,83
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_node_exact --no-header input_data/adj_array/DD_g714
+bfs_bi_node_exact,3404785993,9,27,6,0.012704,86
+```
 
+
+```bash
+bash-5.1# ./code/release/dist_specific --s 13 --t 27 --seed 3404785993 --algo bfs_bi_balanced --no-header input_data/adj_array/DD_g714
+bfs_bi_balanced,3404785993,13,27,4,0.009648,45
+bash-5.1# ./code/release/dist_specific --s 13 --t 27 --seed 3404785993 --algo bfs_bi_node_exact --no-header input_data/adj_array/DD_g714
+bfs_bi_node_exact,3404785993,13,27,5,0.012333,70
+```
+
+We fixed this but made a new bug wtf?
+
+```bash
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_node_exact --no-header input_data/adj_array/DD_g714
+bfs_bi_node_exact,3404785993,9,27,3,0.011442,84
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_node_balanced --no-header input_data/adj_array/DD_g714
+--algo:  not in {bfs,bfs_bi_balanced,bfs_bi_always_swap,bfs_bi_node,bfs_bi_node_exact}
+Run with --help for more information.
+bash-5.1# ./code/release/dist_specific --s 9 --t 27 --seed 3404785993 --algo bfs_bi_balanced --no-header input_data/adj_array/DD_g714
+bfs_bi_balanced,3404785993,9,27,5,0.010039,66
+bash-5.1#
+```
