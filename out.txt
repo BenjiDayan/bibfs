@@ -1,0 +1,57 @@
+Timer unit: 1e-06 s
+
+Total time: 0.098457 s
+File: /Users/benjidayan/GDrive/eth_courses/buchboden/bbbfs_algorithms.py
+Function: approx_average_case at line 44
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    44                                           @profile
+    45                                           def approx_average_case(g, s, t):
+    46       435        707.0      1.6      0.7      if s == t:
+    47                                                   return 0, 1, 1, 0
+    48                                               
+    49       435        187.0      0.4      0.2      max_deg_expanded = 0
+    50                                               
+    51       435        657.0      1.5      0.7      queue_s = {0 : {s}}
+    52       435        110.0      0.3      0.1      queue_t = {0 : {t}}
+    53       435        143.0      0.3      0.1      seen_s = {s: 0}
+    54       435         87.0      0.2      0.1      seen_t = {t: 0}
+    55      1831        302.0      0.2      0.3      while queue_s and queue_t: # if either queue is empty, we're done
+    56      1831        189.0      0.1      0.2          queue_chosen = None
+    57      1831        222.0      0.1      0.2          other_queue = None
+    58      1831        144.0      0.1      0.1          seen_chosen = None
+    59      1831        215.0      0.1      0.2          other_seen = None
+    60       926        640.0      0.7      0.7          if len(seen_s) <= len(seen_t):
+    61       926        159.0      0.2      0.2              queue_chosen = queue_s
+    62       926        145.0      0.2      0.1              seen_chosen = seen_s
+    63       926        102.0      0.1      0.1              other_queue = queue_t
+    64       926        131.0      0.1      0.1              other_seen = seen_t
+    65                                                   else:
+    66       905         95.0      0.1      0.1              queue_chosen = queue_t
+    67       905        109.0      0.1      0.1              seen_chosen = seen_t
+    68       905         87.0      0.1      0.1              other_queue = queue_s
+    69       905         72.0      0.1      0.1              other_seen = seen_s
+    70                                                   # pop a random element from the list of the current layer
+    71      1831       1488.0      0.8      1.5          layer = list(queue_chosen.keys())[0]
+    72                                                   # v = queue_chosen[layer].pop(random.randint(0, len(queue_chosen[layer])-1))
+    73      1831        622.0      0.3      0.6          v = queue_chosen[layer].pop()
+    74                                                   
+    75                                                   
+    76                                                   # delete i layer if exhausted; i+1 remains
+    77       941        192.0      0.2      0.2          if len(queue_chosen[layer]) == 0:
+    78       941        338.0      0.4      0.3              del queue_chosen[layer]  
+    79                                           
+    80     92815      18097.0      0.2     18.4          for w in g.iterNeighbors(v):
+    81     92490      12576.0      0.1     12.8              if w in other_seen:
+    82       325        762.0      2.3      0.8                  return other_seen[w] + 1 + layer, len(seen_s), len(seen_t), max_deg_expanded
+    83     91529      11266.0      0.1     11.4              if w not in seen_chosen:
+    84     91529      15413.0      0.2     15.7                  seen_chosen[w] = layer+1
+    85     90204      11822.0      0.1     12.0                  if layer+1 not in queue_chosen:
+    86      1325        421.0      0.3      0.4                      queue_chosen[layer+1] = set()
+    87     91529      19833.0      0.2     20.1                  queue_chosen[layer+1].add(w)
+    88                                           
+    89      1506       1079.0      0.7      1.1          max_deg_expanded = max(max_deg_expanded, g.degree(v))
+    90                                           
+    91       110         45.0      0.4      0.0      return -1, len(seen_s), len(seen_t), max_deg_expanded
+

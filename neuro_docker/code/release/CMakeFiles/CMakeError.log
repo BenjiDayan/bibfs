@@ -1,0 +1,59 @@
+Detecting C compiler ABI info failed to compile with the following output:
+Change Dir: /Users/benjidayan/coding/bibfs/neuro_docker/code/release/CMakeFiles/CMakeScratch/TryCompile-tl7t4d
+
+Run Build Command(s):/usr/bin/make -f Makefile cmTC_2f461/fast && /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_2f461.dir/build.make CMakeFiles/cmTC_2f461.dir/build
+Building C object CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o
+/opt/homebrew/opt/llvm/bin/clang   -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk   -v -Wl,-v -MD -MT CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -c /opt/homebrew/anaconda3/lib/python3.9/site-packages/cmake/data/share/cmake-3.25/Modules/CMakeCCompilerABI.c
+Homebrew clang version 17.0.6
+Target: arm64-apple-darwin23.1.0
+Thread model: posix
+InstalledDir: /opt/homebrew/opt/llvm/bin
+clang: warning: -Wl,-v: 'linker' input unused [-Wunused-command-line-argument]
+ (in-process)
+ "/opt/homebrew/Cellar/llvm/17.0.6/bin/clang-17" -cc1 -triple arm64-apple-macosx13.3.0 -Wundef-prefix=TARGET_OS_ -Werror=undef-prefix -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -emit-obj -mrelax-all -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -ffp-contract=on -fno-rounding-math -funwind-tables=1 -target-sdk-version=13.3 -fcompatibility-qualified-id-block-type-checking -fvisibility-inlines-hidden-static-local-var -target-cpu apple-m1 -target-feature +v8.5a -target-feature +aes -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +lse -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sha2 -target-feature +sha3 -target-feature +neon -target-feature +zcm -target-feature +zcz -target-feature +fullfp16 -target-abi darwinpcs -debugger-tuning=lldb -target-linker-version 1015.7 -v -fcoverage-compilation-dir=/Users/benjidayan/coding/bibfs/neuro_docker/code/release/CMakeFiles/CMakeScratch/TryCompile-tl7t4d -resource-dir /opt/homebrew/Cellar/llvm/17.0.6/lib/clang/17 -dependency-file CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o.d -MT CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/usr/local/include -internal-isystem /opt/homebrew/Cellar/llvm/17.0.6/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/usr/include -fdebug-compilation-dir=/Users/benjidayan/coding/bibfs/neuro_docker/code/release/CMakeFiles/CMakeScratch/TryCompile-tl7t4d -ferror-limit 19 -stack-protector 1 -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fmax-type-align=16 -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -x c /opt/homebrew/anaconda3/lib/python3.9/site-packages/cmake/data/share/cmake-3.25/Modules/CMakeCCompilerABI.c
+clang -cc1 version 17.0.6 based upon LLVM 17.0.6 default target arm64-apple-darwin23.1.0
+ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/usr/local/include"
+ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/Library/Frameworks"
+#include "..." search starts here:
+#include <...> search starts here:
+ /opt/homebrew/Cellar/llvm/17.0.6/lib/clang/17/include
+ /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/usr/include
+ /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk/System/Library/Frameworks (framework directory)
+End of search list.
+Linking C executable cmTC_2f461
+/opt/homebrew/anaconda3/lib/python3.9/site-packages/cmake/data/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2f461.dir/link.txt --verbose=1
+/opt/homebrew/opt/llvm/bin/clang  -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names  -v -Wl,-v CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -o cmTC_2f461 
+Homebrew clang version 17.0.6
+Target: arm64-apple-darwin23.1.0
+Thread model: posix
+InstalledDir: /opt/homebrew/opt/llvm/bin
+ "/opt/homebrew/anaconda3/bin/ld" -demangle -lto_library /opt/homebrew/Cellar/llvm/17.0.6/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 13.3.0 13.3 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk -o cmTC_2f461 -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_2f461.dir/CMakeCCompilerABI.c.o -lSystem /opt/homebrew/Cellar/llvm/17.0.6/lib/clang/17/lib/darwin/libclang_rt.osx.a
+@(#)PROGRAM:ld  PROJECT:ld64-530
+BUILD 07:38:32 Sep  7 2022
+configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em (tvOS)
+Library search paths:
+Framework search paths:
+ld: library not found for -lSystem
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make[1]: *** [cmTC_2f461] Error 1
+make: *** [cmTC_2f461/fast] Error 2
+
+
+
+
+Determining if the C compiler works failed with the following output:
+Change Dir: /Users/benjidayan/coding/bibfs/neuro_docker/code/release/CMakeFiles/CMakeScratch/TryCompile-m6JYmx
+
+Run Build Command(s):/usr/bin/make -f Makefile cmTC_43ed9/fast && /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_43ed9.dir/build.make CMakeFiles/cmTC_43ed9.dir/build
+Building C object CMakeFiles/cmTC_43ed9.dir/testCCompiler.c.o
+/opt/homebrew/opt/llvm/bin/clang   -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -MD -MT CMakeFiles/cmTC_43ed9.dir/testCCompiler.c.o -MF CMakeFiles/cmTC_43ed9.dir/testCCompiler.c.o.d -o CMakeFiles/cmTC_43ed9.dir/testCCompiler.c.o -c /Users/benjidayan/coding/bibfs/neuro_docker/code/release/CMakeFiles/CMakeScratch/TryCompile-m6JYmx/testCCompiler.c
+Linking C executable cmTC_43ed9
+/opt/homebrew/anaconda3/lib/python3.9/site-packages/cmake/data/bin/cmake -E cmake_link_script CMakeFiles/cmTC_43ed9.dir/link.txt --verbose=1
+/opt/homebrew/opt/llvm/bin/clang  -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_43ed9.dir/testCCompiler.c.o -o cmTC_43ed9 
+ld: library not found for -lSystem
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make[1]: *** [cmTC_43ed9] Error 1
+make: *** [cmTC_43ed9/fast] Error 2
+
+
+

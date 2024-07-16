@@ -1,0 +1,116 @@
+Timer unit: 1e-06 s
+
+Total time: 0.128995 s
+File: /Users/benjidayan/GDrive/eth_courses/buchboden/bbbfs_algorithms.py
+Function: approx_average_case at line 44
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    44                                           @profile
+    45                                           def approx_average_case(g, s, t):
+    46       435        371.0      0.9      0.3      if s == t:
+    47                                                   return 0, 1, 1, 0
+    48                                               
+    49       435        106.0      0.2      0.1      max_deg_expanded = 0
+    50                                               
+    51       435        453.0      1.0      0.4      queue_s = {0 : {s}}
+    52       435        172.0      0.4      0.1      queue_t = {0 : {t}}
+    53       435        124.0      0.3      0.1      seen_s = {s: 0}
+    54       435        100.0      0.2      0.1      seen_t = {t: 0}
+    55      1943        340.0      0.2      0.3      while queue_s and queue_t: # if either queue is empty, we're done
+    56      1943        222.0      0.1      0.2          queue_chosen = None
+    57      1943        188.0      0.1      0.1          other_queue = None
+    58      1943        206.0      0.1      0.2          seen_chosen = None
+    59      1943        234.0      0.1      0.2          other_seen = None
+    60      1002        494.0      0.5      0.4          if len(seen_s) <= len(seen_t):
+    61      1002        160.0      0.2      0.1              queue_chosen = queue_s
+    62      1002        143.0      0.1      0.1              seen_chosen = seen_s
+    63      1002        129.0      0.1      0.1              other_queue = queue_t
+    64      1002        138.0      0.1      0.1              other_seen = seen_t
+    65                                                   else:
+    66       941        157.0      0.2      0.1              queue_chosen = queue_t
+    67       941         97.0      0.1      0.1              seen_chosen = seen_t
+    68       941        110.0      0.1      0.1              other_queue = queue_s
+    69       941         86.0      0.1      0.1              other_seen = seen_s
+    70                                                   # pop a random element from the list of the current layer
+    71      1943       1152.0      0.6      0.9          layer = list(queue_chosen.keys())[0]
+    72                                                   # v = queue_chosen[layer].pop(random.randint(0, len(queue_chosen[layer])-1))
+    73      1943        552.0      0.3      0.4          v = queue_chosen[layer].pop()
+    74                                                   
+    75                                                   
+    76                                                   # delete i layer if exhausted; i+1 remains
+    77      1079        226.0      0.2      0.2          if len(queue_chosen[layer]) == 0:
+    78      1079        333.0      0.3      0.3              del queue_chosen[layer]  
+    79                                           
+    80    127833      23240.0      0.2     18.0          for w in g.iterNeighbors(v):
+    81    127427      17180.0      0.1     13.3              if w in other_seen:
+    82       406        605.0      1.5      0.5                  return other_seen[w] + 1 + layer, len(seen_s), len(seen_t), max_deg_expanded
+    83    126432      15810.0      0.1     12.3              if w not in seen_chosen:
+    84    126432      20289.0      0.2     15.7                  seen_chosen[w] = layer+1
+    85    124874      16951.0      0.1     13.1                  if layer+1 not in queue_chosen:
+    86      1558        410.0      0.3      0.3                      queue_chosen[layer+1] = set()
+    87    126432      27361.0      0.2     21.2                  queue_chosen[layer+1].add(w)
+    88                                           
+    89      1537        845.0      0.5      0.7          max_deg_expanded = max(max_deg_expanded, g.degree(v))
+    90                                           
+    91        29         11.0      0.4      0.0      return -1, len(seen_s), len(seen_t), max_deg_expanded
+
+Total time: 10.6372 s
+File: cl.py
+Function: do_stuff at line 17
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    17                                           @profile
+    18                                           def do_stuff(tau, ns):
+    19         1          0.0      0.0      0.0      avg_work_list = []
+    20         1          0.0      0.0      0.0      avg_max_degree_expanded_list = []
+    21                                               # for n in [1000, 10000, 100000, 200000, 400000, 700000]:
+    22         1         11.0     11.0      0.0      for n in ns:
+    23         1         15.0     15.0      0.0          print(n)
+    24         1       4902.0   4902.0      0.0          degree_seq = 2 * powerlaw_dist(tau=tau, x_min=1, n=n)
+    25                                           
+    26         1       3424.0   3424.0      0.0          gen = nk.generators.ChungLuGenerator(degree_seq)
+    27                                           
+    28         1      58091.0  58091.0      0.5          g = gen.generate()
+    29                                           
+    30         1      43201.0  43201.0      0.4          nk.overview(g)
+    31                                           
+    32                                           
+    33         1          1.0      1.0      0.0          k = 30
+    34         1       1606.0   1606.0      0.0          us = np.random.choice(n, size=k)
+    35                                                   # dists = np.zeros((len(us), len(us)))
+    36         1          4.0      4.0      0.0          dists = np.zeros((len(us), len(us)))
+    37         1          1.0      1.0      0.0          max_degs_expanded = np.zeros((len(us), len(us)))
+    38                                           
+    39        30         20.0      0.7      0.0          for i, u in enumerate(us):
+    40       900        555.0      0.6      0.0              for j, v in enumerate(us):
+    41       465         53.0      0.1      0.0                  if j <= i:
+    42       465         23.0      0.0      0.0                      continue
+    43       435   10278651.0  23629.1     96.6                  thing =  nk.distance.Dijkstra(g, u, True, False, v).run()
+    44                                                           # dists[i, j] = thing.distance(v)
+    45       435     244654.0    562.4      2.3                  dist, ls, lt, max_degree_expanded =  bbbfs_algorithms.approx_average_case(g, u, v)
+    46       435        688.0      1.6      0.0                  dists[i, j] =  ls + lt
+    47       435        111.0      0.3      0.0                  max_degs_expanded[i, j] = max_degree_expanded
+    48                                           
+    49         1         35.0     35.0      0.0          avg_work = (np.sum(dists))/((k*(k-1)/2))
+    50         1          5.0      5.0      0.0          avg_max_degree_expanded = (np.sum(max_degs_expanded))/((k*(k-1)/2))
+    51                                           
+    52         1         30.0     30.0      0.0          print(f'avg_work: {avg_work}')
+    53         1       1086.0   1086.0      0.0          print(f'log_n(avg_work): {np.emath.logn(n, avg_work)}')
+    54         1          3.0      3.0      0.0          avg_work_list.append((n, avg_work))
+    55                                           
+    56         1          0.0      0.0      0.0          avg_max_degree_expanded_list.append(avg_max_degree_expanded)
+    57                                           
+    58                                           
+    59                                           
+    60         1         15.0     15.0      0.0      ns = np.array([x[0] for x in avg_work_list])
+    61                                               # plt.plot(ns, [x[1] for x in avg_work_list], label='avg work')
+    62                                               # plt.plot(ns, ns**((tau-2)/(tau-1)), label='n^((tau-2)/(tau-1))')
+    63                                               # plt.plot(ns, ns**(1/2), label='n^(1/2)')
+    64                                               # plt.plot(ns, avg_max_degree_expanded_list, label='max degree expanded')
+    65                                               # plt.xscale('log')
+    66                                               # plt.yscale('log')
+    67                                               # plt.legend()
+    68                                               # plt.show()
+
