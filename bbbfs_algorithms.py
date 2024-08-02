@@ -4,8 +4,16 @@ import random
 import random
 import time
 import networkit as nk
+import networkx as nx
 import pandas as pd
 from dataclasses import dataclass
+import numpy as np
+import benji_utils as utils
+import generators
+import concurrent.futures
+from tqdm import tqdm
+
+from networkit.graph import Graph
 
 # I don't know why we use this... is it just a data structure that we can choose
 # a random item from efficiently? It's literally a set that we can sample a random
@@ -153,8 +161,10 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
             return self.sBFS, self.tBFS
         else:
             return self.tBFS, self.sBFS
+        
 
     def choose_bfs(self):
+        # Choose by which has the smaller number seen
         num_seen_s = len(self.sBFS.seen)
         num_seen_t = len(self.tBFS.seen)
 
@@ -315,6 +325,53 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
         self.terminate(bfs, other_bfs, intersection_point=None)
         return False
 
+
+class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
+    def choose_bfs(self):
+        # We choose the one with a smaller queue.
+        # There should only be one layer however.
+        s_queue_size = sum([len(self.sBFS.queue[layer]) for layer in self.sBFS.queue])
+        t_queue_size = sum([len(self.tBFS.queue[layer]) for layer in self.tBFS.queue])
+
+        if s_queue_size <= t_queue_size:
+            return self.sBFS, self.tBFS
+        else:
+            return self.tBFS, self.sBFS
+        
+    def run_expansion_search(self):
+        layer = None
+        while self.sBFS.queue and self.tBFS.queue:
+            # just started BiBFS, or just deleted layer.
+            if layer is None or layer not in bfs.queue:
+                bfs, other_bfs = self.choose_bfs()
+                layer = list(bfs.queue.keys())[0]
+
+            # pop a random element from the list of the current layer
+            v = bfs.queue[layer].choose_random_item()
+            bfs.queue[layer].remove(v)
+            bfs.expanded.add(v)
+
+
+            for w in self.g.iterNeighbors(v):
+                bfs.work += 1  #
+                if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
+                    bfs.node_to_parent[w] = v
+                    self.terminate(bfs, other_bfs, w)
+                    return True
+
+                if w not in bfs.seen:
+                    bfs.seen[w] = layer + 1
+                    bfs.node_to_parent[w] = v
+                    if layer + 1 not in bfs.queue:
+                        bfs.queue[layer + 1] = ListDict([])
+                    bfs.queue[layer + 1].add(w)
+
+            # delete i layer if exhausted; i+1 remains
+            if len(bfs.queue[layer]) == 0:
+                del bfs.queue[layer]
+
+        self.terminate(bfs, other_bfs, intersection_point=None)
+        return False
             
 
 def approx_average_case(g, s, t):
@@ -403,6 +460,32 @@ def run_for_row(row, algo=BiBFS):
 def run_for_rows(rows, algos):
     new_rows = []
     g = None
+    graph_name = None
+
+    for row in rows:
+        s, t = row.s, row.t
+        seed = row.seed
+        random.seed(seed)
+        nk.setSeed(seed, True)
+        if row.graph != graph_name:
+            graph_name = row.graph
+            g = utils.graph_name_to_nk(row.graph)
+        
+        for a in algos:
+            algo = a(g, s, t)
+            st = time.time()
+            found = algo.run()
+            rt = time.time() - st
+
+            new_row = row.copy()
+            new_row['algo'] =  f'python-{algo.__class__.__name__}'
+            new_row['search_space'] = algo.work
+            new_row['dist'] = algo.dist if found else -1
+            new_row['time_dist'] = rt
+
+            new_rows.append(new_row)
+    return new_rows
+
 
 def replicate_experiment(num_graphs=5):
     df = utils.df
@@ -416,3 +499,154 @@ def replicate_experiment(num_graphs=5):
                 new_rows.append(new_row)
 
     return pd.DataFrame(new_rows)
+
+
+
+def random_sample_pair(n):
+    return tuple(sorted(random.sample(range(n), 2)))
+
+def random_sample_pairs(n, num_pairs):
+    if num_pairs > n*(n-1)/4:
+        return np.random.permutation(all_pairs(n))[:num_pairs]
+    else:
+        out = set()
+        while len(out) < num_pairs:
+            out.add(random_sample_pair(n))
+        return list(out)
+
+def all_pairs(n):
+    return [(i, j) for i in range(n) for j in range(i+1, n)]
+
+
+def run_for_pairs(g, pairs, algo_class=BiBFS_VertexBalancedApproximate, do_print=False):
+    new_rows = []
+    for s, t in pairs if not do_print else tqdm(pairs):
+        algo = algo_class(g, s, t)
+        st = time.time()
+        found = algo.run()
+        rt = time.time() - st
+
+        new_row = {'s': s, 't': t, 'algo': f'python-{algo.__class__.__name__}', 'search_space': algo.work, 'dist': algo.dist if found else -1, 'time_dist': rt}
+        new_rows.append(new_row)
+    return new_rows
+
+
+# Does a comparison of algos on a graph vs CL counterpart
+def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
+                  algos=[BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
+                  do_print=False):
+    random.seed(seed)
+    nk.setSeed(seed, True)
+
+    tau = 2.5
+    if not g_cl:
+        g_cl = generators.fit_connected_chunglu_to_g(g, tau=tau, iters=fit_iters)
+    
+    n, e, n2, e2 = g.numberOfNodes(), g.numberOfEdges(), g_cl.numberOfNodes(), g_cl.numberOfEdges()
+    print(f'nodes: {n} {n2} edges: {e} {e2}')
+    if np.abs((n-n2)/n) > 0.1 or np.abs((e-e2)/e) > 0.1:
+        print('Greater than 10% difference!')
+        return None
+
+    # pick n_pairs random pairs of nodes without replacement
+    random.seed(seed)
+    nk.setSeed(seed, True)
+    n = min(g.numberOfNodes(), g_cl.numberOfNodes())
+    pairs = random_sample_pairs(n, n_pairs)
+    rows = []
+    for algo in algos:
+        rows += run_for_pairs(g, pairs, algo, do_print=do_print)
+        rows += run_for_pairs(g_cl, pairs, algo, do_print=do_print)
+    df = pd.DataFrame(rows)
+    # rows = run_for_pairs(g, pairs, BiBFS_VertexBalancedApproximate)
+    # rows_cl = run_for_pairs(g_cl, pairs, BiBFS_VertexBalancedApproximate)
+    # df = pd.DataFrame(rows + rows_cl)
+    return df
+
+def do_comparison2(g_name):
+    g = utils.graph_name_to_nk(g_name)
+    df = do_comparison(g)
+    df['graph'] = g_name
+    return df
+
+# do comparison with pre-loaded CL graph.
+def do_real_fake_comparison(g_name, **kwargs):
+    g = utils.graph_name_to_nk(g_name)
+    try:
+        g_cl = utils.graph_name_to_nk(g_name, cl=True)
+    except:
+        print(f'No cl graph for {g_name}')
+        return
+    df = do_comparison(g, g_cl=g_cl, **kwargs)
+    df['graph'] = g_name
+    return df
+
+
+
+
+def generate_cl_counterpart(name, tau=2.5, seed=42):
+    g = utils.graph_name_to_nk(name)
+    print(name, g.numberOfNodes(), g.numberOfEdges())
+    np.random.seed(seed=seed)
+    random.seed(seed)
+    nk.setSeed(seed, True)
+    g_cl, fit = generators.fit_connected_chunglu_to_g(g, tau=tau, iters=3, tol=0.1)
+    if not fit:
+        print(f"Could not fit {name}")
+        return
+
+    out_fp = f'{utils.p}edge_list_cl2/{name}_cl'
+    print(out_fp)
+    nk.graphio.EdgeListWriter(' ', 0).write(g_cl, out_fp)
+
+
+def generate_cl_counterparts(tau=2.5, seed=42):
+    graph_names = sorted(utils.input_names_real)
+    graph_names.sort()
+
+    # for name in graph_names:
+    #     print(name)
+    #     g = utils.graph_name_to_nk(name)
+    #     print(name, g.numberOfNodes(), g.numberOfEdges())
+    #     random.seed(seed)
+    #     nk.setSeed(seed, True)
+    #     g_cl, fit = generators.fit_connected_chunglu_to_g(g, tau=tau, iters=3, tol=0.1)
+    #     if not fit:
+    #         print(f"Could not fit {name}")
+    #         continue
+
+    #     out_fp = f'{utils.p}edge_list_cl/{name}_cl'
+    #     print(out_fp)
+    #     nk.graphio.EdgeListWriter(' ', 0).write(g_cl, out_fp)
+
+    # Actually process pool executor this
+    with concurrent.futures.ProcessPoolExecutor(max_workers=14) as executor:
+        # Wrap the executor.map call with tqdm
+        results = list(tqdm(executor.map(generate_cl_counterpart, graph_names), total=len(graph_names)))
+
+
+
+if __name__ == '__main__':
+    df = utils.df
+    # iloc 500 sized chunks of the dataframe
+    df_graphs = []
+    for i in range(0, len(df), 500):
+        df_graphs.append(df.iloc[i:i+500])
+
+    # make sure each graph is in its own dataframe
+    seen = set()
+    for df_graph in df_graphs:
+        assert len(df_graph.graph.unique()) == 1
+        assert df_graph.graph.unique()[0] not in seen
+        seen.add(df_graph.graph.unique()[0])
+
+
+    # Assuming run_for_rows and df_graphs are defined
+    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+        # Wrap the executor.map call with tqdm
+        results = list(tqdm(executor.map(run_for_rows, [[x for _, x in df_graph.iterrows()] for df_graph in df_graphs[:20]], 
+                                        [[BiBFS_VertexBalancedApproximate, 
+                                        BiBFS_ExactExpandSmallerQueue, 
+                                        BiBFS_ExactCheckDirectEdges, 
+                                        BiBFS_EdgeBalancedApproximate]]*20), total=len(df_graphs[:20])))
+
