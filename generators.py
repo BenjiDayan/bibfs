@@ -19,22 +19,30 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
-def powerlaw_fit_graph(g):
+def powerlaw_fit_graph(g) -> float:
     dd = sorted(nk.centrality.DegreeCentrality(g).run().scores(), reverse=True)
     with HiddenPrints():
         fit = powerlaw.Fit(dd, discrete=True)
     return fit.power_law.alpha
 
-def powerlaw_dist(tau=2.5, x_min=1, n=1000):
-    """sample from a tau exponent power law distribution
-    pdf: prop to x^-(a+1), i.e. tau = a+1
-    mean: ((tau-1) x_min)/(tau - 2) for tau > 2
-    x_min: support is [x_min, inf]
-    size: number of samples to draw
-    """
-    a = tau-1
-    pareto = (np.random.pareto(a, size=n) + 1) * x_min
-    return pareto
+def powerlaw_dist(tau=2.5, x_min=1, n=1000, discrete=True) -> np.ndarray:
+    # """sample from a tau exponent power law distribution
+    # pdf: prop to x^-(a+1), i.e. tau = a+1
+    # mean: ((tau-1) x_min)/(tau - 2) for tau > 2
+    # x_min: support is [x_min, inf]
+    # size: number of samples to draw
+    # """
+    # a = tau-1
+    # pareto = (np.random.pareto(a, size=n) + 1) * x_min
+    # return pareto
+    
+    # Actually I think the power_law alpha fit is the x^{-tau} exponeent of the pdf.
+    dist= powerlaw.Power_Law(xmin=x_min, parameters=[tau], discrete=discrete)
+    out = dist.generate_random(n)
+    if discrete:
+        return out.astype(np.int32)
+    return out
+
 
 def get_largest_component(g: Graph, relabel=True) -> Graph:
     cc = nk.components.ConnectedComponents(g)
@@ -53,7 +61,7 @@ def relabel_graph(g: Graph) -> Graph:
     g_nx_relabelled = nx.relabel.convert_node_labels_to_integers(g_nx, first_label=0, ordering='default')
     return nk.nxadapter.nx2nk(g_nx_relabelled)
 
-def fit_connected_chunglu_to_g(g, tau=2.5, iters=5, tol=0.1):
+def fit_connected_chunglu_to_g(g, tau=None, iters=5, tol=0.1):
     """Tries to make a ChungLu graph with the same number of nodes and edges as g.
     We do weights from tau powerlaw dist. But we have to increase the number of nodes to ensure connectedness.
 
@@ -63,6 +71,8 @@ def fit_connected_chunglu_to_g(g, tau=2.5, iters=5, tol=0.1):
     """
 
     n, e = g.numberOfNodes(), g.numberOfEdges()
+    if tau is None:
+        tau = powerlaw_fit_graph(g)
     n2, e2 = n, e
     for _ in range(iters):
         g = generate_chung_lu(n2, tau=tau, desiredAvgDegree=2*e2/n2)
@@ -81,7 +91,7 @@ def fit_connected_chunglu_to_g(g, tau=2.5, iters=5, tol=0.1):
 
 
 def generate_chung_lu(n, tau=2.5, desiredAvgDegree=50.0):
-    weights = powerlaw_dist(tau, 1, n)#
+    weights = powerlaw_dist(tau, 1, n, discrete=False)#
     # weights = weights / np.sqrt(weights.sum())
 
     # # fit c to get the desired avg degree.
@@ -156,11 +166,17 @@ def chung_lu_fit_c_lite(g, weights):
 def discretise_weights(weights):
     """Discretise weights to integers"""
     out = []
-    for w in weights:
-        out.append(math.floor(w))
-        if np.random.rand() < w - out[-1]:
-            out[-1] += 1
+    randoms = np.random.rand(len(weights))
+    floored_weights = np.floor(weights)
+    out = floored_weights.astype(np.int32)
+    out += (randoms < weights - floored_weights).astype(np.int32)
     return out
+
+    # for w in weights:
+    #     out.append(math.floor(w))
+    #     if np.random.rand() < w - out[-1]:
+    #         out[-1] += 1
+    # return out
 
 def chung_lu_fit_c_lite2(g, weights: np.ndarray, iters=5, do_print=False):
     E_edges = weights.sum() / 2
@@ -172,8 +188,8 @@ def chung_lu_fit_c_lite2(g, weights: np.ndarray, iters=5, do_print=False):
 
     c = num_edges / E_edges
 
-    weights_disc_scaled = discretise_weights(weights * num_edges / E_edges)
-    g_out = nk.generators.ChungLuGenerator(weights_disc_scaled).generate()
+    # weights_disc_scaled = discretise_weights(weights * num_edges / E_edges)
+    # g_out = nk.generators.ChungLuGenerator(weights_disc_scaled).generate()
 
     for _ in range(iters):
         weights_disc_scaled = discretise_weights(weights * c)

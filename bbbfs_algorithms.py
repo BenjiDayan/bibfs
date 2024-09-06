@@ -1,4 +1,5 @@
 import gc
+import os
 import random
 
 import random
@@ -185,8 +186,9 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
 
 
             for w in self.g.iterNeighbors(v):
-                bfs.work += 1  #
+                bfs.work += 1
                 if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
+                    bfs.seen[w] = layer + 1
                     bfs.node_to_parent[w] = v
                     self.terminate(bfs, other_bfs, w)
                     return True
@@ -231,6 +233,26 @@ class BiBFS_ExactExpandSmallerQueue(BiBFS_VertexBalancedApproximate):
                     return
 
         super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+
+
+class BiBFS_ExactExpandSmallerQueueBetter(BiBFS_ExactExpandSmallerQueue):#
+    """We actually don't need to expand smaller queue front if the intersection point was from
+    inner to inner. We can just terminate immediately."""
+    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential):
+        try:
+            layer1 = list(self.sBFS.queue.keys())[0]
+            layer2 = list(self.tBFS.queue.keys())[0]
+        except IndexError:  # one of the queues is empty. direct edge guaranteed
+            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+            return
+        
+        s_dist = self.sBFS.seen[intersection_point_potential]
+        t_dist = self.tBFS.seen[intersection_point_potential]
+        if s_dist == layer1 or t_dist == layer2:
+            # super super terminate
+            return BiBFS_VertexBalancedApproximate.terminate(self, self.sBFS, self.tBFS, intersection_point_potential)
+    
+        return super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
 
 
 class BiBFS_ExactCheckDirectEdges(BiBFS_VertexBalancedApproximate):
@@ -372,7 +394,52 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
 
         self.terminate(bfs, other_bfs, intersection_point=None)
         return False
-            
+    
+class BiBFS_LayerbalancedFull(BiBFS_Layerbalanced):
+    """Like LB, but will finish expanding the current layer even after finding an intersection point"""
+    def run_expansion_search(self):
+        layer = None
+        found_intersection_point = None
+        while self.sBFS.queue and self.tBFS.queue:
+            # just started BiBFS, or just deleted layer.
+            if layer is None or layer not in bfs.queue:
+                if found_intersection_point is not None:
+                    self.terminate(bfs, other_bfs, found_intersection_point)
+                    return True
+                bfs, other_bfs = self.choose_bfs()
+                layer = list(bfs.queue.keys())[0]
+
+            # pop a random element from the list of the current layer
+            v = bfs.queue[layer].choose_random_item()
+            bfs.queue[layer].remove(v)
+            bfs.expanded.add(v)
+
+
+            for w in self.g.iterNeighbors(v):
+                bfs.work += 1  #
+                if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
+                    bfs.node_to_parent[w] = v
+                    # self.terminate(bfs, other_bfs, w)
+                    # return True
+                    found_intersection_point = w
+
+                if w not in bfs.seen:
+                    bfs.seen[w] = layer + 1
+                    bfs.node_to_parent[w] = v
+                    if layer + 1 not in bfs.queue:
+                        bfs.queue[layer + 1] = ListDict([])
+                    bfs.queue[layer + 1].add(w)
+
+            # delete i layer if exhausted; i+1 remains
+            if len(bfs.queue[layer]) == 0:
+                del bfs.queue[layer]
+
+        if found_intersection_point is not None:
+            self.terminate(bfs, other_bfs, found_intersection_point)
+            return True
+
+        self.terminate(bfs, other_bfs, intersection_point=None)
+        return False
 
 def approx_average_case(g, s, t):
     if s == t:
@@ -533,7 +600,7 @@ def run_for_pairs(g, pairs, algo_class=BiBFS_VertexBalancedApproximate, do_print
 
 # Does a comparison of algos on a graph vs CL counterpart
 def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
-                  algos=[BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
+                  algos=[BiBFS_Layerbalanced, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
                   do_print=False):
     random.seed(seed)
     nk.setSeed(seed, True)
@@ -561,6 +628,20 @@ def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
     # rows = run_for_pairs(g, pairs, BiBFS_VertexBalancedApproximate)
     # rows_cl = run_for_pairs(g_cl, pairs, BiBFS_VertexBalancedApproximate)
     # df = pd.DataFrame(rows + rows_cl)
+    return df#
+
+def run_algos_on_g(g, seed=42, n_pairs=1000,
+        algos=[BiBFS_Layerbalanced, BiBFS_LayerbalancedFull, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueueBetter, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
+        do_print=False):
+    random.seed(seed)
+    nk.setSeed(seed, True)
+    n, e = g.numberOfNodes(), g.numberOfEdges()
+    print(f'nodes: {n} edges: {e}')
+    pairs = random_sample_pairs(n, n_pairs)
+    rows = []
+    for algo in algos:
+        rows += run_for_pairs(g, pairs, algo, do_print=do_print)
+    df = pd.DataFrame(rows)
     return df
 
 def do_comparison2(g_name):
@@ -584,25 +665,35 @@ def do_real_fake_comparison(g_name, **kwargs):
 
 
 
-def generate_cl_counterpart(name, tau=2.5, seed=42):
+def generate_cl_counterpart(name, tau=None, seed=42):
+
     g = utils.graph_name_to_nk(name)
     print(name, g.numberOfNodes(), g.numberOfEdges())
     np.random.seed(seed=seed)
     random.seed(seed)
     nk.setSeed(seed, True)
-    g_cl, fit = generators.fit_connected_chunglu_to_g(g, tau=tau, iters=3, tol=0.1)
+    try:
+        g_cl, fit = generators.fit_connected_chunglu_to_g(g, tau=tau, iters=3, tol=0.1)
+    except Exception as e:
+        # this seems to happen if powerlaw couldn't fit an alpha, it instead returns
+        # alpha=nan, and then when we generate weights those are nans too :(
+        # BZR-MD is a tiny graph of 33 nodes and 528 edges this occurs
+        print(f"Errored on {name}")
+        return
     if not fit:
         print(f"Could not fit {name}")
         return
 
-    out_fp = f'{utils.p}edge_list_cl2/{name}_cl'
+    path = utils.p + 'edge_list_cl_taufit/'
+    os.makedirs(path, exist_ok=True)
+    out_fp = f'{path}{name}_cl'
     print(out_fp)
     nk.graphio.EdgeListWriter(' ', 0).write(g_cl, out_fp)
 
 
-def generate_cl_counterparts(tau=2.5, seed=42):
+def generate_cl_counterparts():
     graph_names = sorted(utils.input_names_real)
-    graph_names.sort()
+    graph_names = graph_names
 
     # for name in graph_names:
     #     print(name)

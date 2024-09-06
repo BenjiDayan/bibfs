@@ -1,6 +1,11 @@
 import pandas as pd
 import os
 import generators
+import matplotlib.pyplot as plt
+import numpy as np
+import networkit as nk
+from networkit import Graph
+import powerlaw
 
 # df = pd.read_csv('../dist.csv')
 
@@ -19,14 +24,14 @@ import glob
 edgelists = glob.glob(p + 'edge_list/*')
 edgelists[:10]
 
-edgelists_cl = glob.glob(p + 'edge_list_cl2/*')
+edgelists_cl = glob.glob(p + 'edge_list_cl_taufit/*')
 
 def graph_name_to_nk(graph_name, prefix='edge_list', cl=False):
     """Loads a graph by name"""
     # NB about 7% of real graphs aren't in the cl folder - their
     # shape didn't fit.
     if cl:
-        prefix = 'edge_list_cl2'
+        prefix = 'edge_list_cl_taufit'
     fn = f'{p}{prefix}/{graph_name if not cl else graph_name + "_cl"}'
     assert(fn in edgelists if not cl else fn in edgelists_cl)
     # fn = edgelists[edgelists.index(f'{p}edge_list/{graph_name}')]
@@ -34,17 +39,18 @@ def graph_name_to_nk(graph_name, prefix='edge_list', cl=False):
 
 def graph_name_to_resultsdf(graph_name):
     algo_name_map = {
+        'python-BiBFS_Layerbalanced': 'LB',
         'python-BiBFS_VertexBalancedApproximate': 'VBA',
         'python-BiBFS_ExactExpandSmallerQueue': 'VBSQ',
         'python-BiBFS_ExactCheckDirectEdges': 'VBDE',
         'python-BiBFS_EdgeBalancedApproximate': 'EBA',
     }
 
-    fn = f'{p}real_fake_output/{graph_name}.csv'
+    fn = f'{p}real_fake_output_taufit/{graph_name}.csv'
     df = pd.read_csv(fn)
-    shape_per_graph_type = df.shape[0] // 8
+    shape_per_graph_type = df.shape[0] // (2*len(algo_name_map))
     j = list(df.columns).index('graph')
-    for i in range(4):
+    for i in range(len(algo_name_map)):
         df.iloc[(2*i +1) * shape_per_graph_type: (2*i+2) * shape_per_graph_type, j] = f'{graph_name}_cl'
     
     
@@ -111,9 +117,72 @@ input_names_real.sort()
 
 
 # fake graph counterparts for real graphs
-cl_fake_graphs = os.listdir(p + 'edge_list_cl2')
+cl_fake_graphs = os.listdir(p + 'edge_list_cl_taufit')
 
 input_names_real_with_cl = [name for name in input_names_real if name + '_cl' in cl_fake_graphs]
+
+
+def plot_degree_dist(g: Graph, pl_fit=False, vlines=0):
+    if type(g) is nk.Graph:
+        dd = sorted(nk.centrality.DegreeCentrality(g).run().scores(), reverse=True)
+    elif type(g) is np.ndarray and np.issubdtype(g.dtype, np.integer):
+        dd = sorted(g.astype(np.int64), reverse=True)
+    else:
+        raise Exception('g should be an nk Graph, or a np.ndarray of integers >=1')
+    degrees, numberOfNodes = np.unique(dd, return_counts=True)
+    # fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+    plt.subplot(121)
+    # plt.sca(axes[0])
+    plt.xscale("log")
+    plt.xlabel("degree")
+    plt.yscale("log")
+    plt.ylabel("number of nodes")
+    # plt.scatter(degrees, numberOfNodes, s=1.1, marker='x')
+    plt.scatter(degrees, numberOfNodes)
+    if pl_fit:
+        fit = powerlaw.Fit(dd, discrete=True)
+        print(f'powerlaw alpha: {fit.power_law.alpha:.3f}')
+#         fit.power_law.plot_pdf(linestyle='--', color='purple')
+        plt.axvline(fit.xmin, linestyle='--', color='r', label=f'xmin: {fit.xmin}')
+#         plt.axvline(fit.xmax, linestyle='--', color='pink', label=f'xmax: {fit.xmax}')
+        y = fit.power_law.pdf()
+        plt.plot(fit.data, y * len(fit.data), linestyle='--', color='purple')
+        
+    if vlines > 0:  # plot like quartile lines for number of nodes.
+        # rough q-tiles
+        q = vlines
+        colors = plt.cm.rainbow(np.linspace(0, 1, q))
+        rev_dd = list(reversed(dd))
+        for i in range(1, q):
+            plt.axvline(rev_dd[i * len(dd)//q], label=f'qtile-{i}/{q}', c=colors[i])
+        plt.legend()
+    # plt.show()
+    plt.subplot(122)
+
+    one_minus_cdf = 1. * np.arange(len(dd)) / (len(dd) - 1)
+    plt.xscale("log")
+    plt.xlabel("degree")
+    plt.yscale("log")
+    plt.ylabel("1 - CDF")
+    plt.plot(dd, one_minus_cdf)
+    ax = plt.gca()
+    if pl_fit:
+        y = fit.power_law.ccdf()
+        perc = len(fit.data)/len(fit.data_original)
+#         fit.power_law.plot_ccdf(linestyle='--', color='purple', ax=ax)
+        plt.plot(fit.data, y * perc, linestyle='--', color='purple')
+        plt.axvline(fit.xmin, linestyle='--', color='r', label=f'xmin: {fit.xmin}')
+#         plt.axvline(fit.xmax, linestyle='--', color='pink', label=f'xmax: {fit.xmax}')
+
+
+    if vlines > 0:  # plot like quartile lines for number of nodes.
+        # rough q-tiles
+        q = vlines
+        colors = plt.cm.rainbow(np.linspace(0, 1, q))
+        rev_dd = list(reversed(dd))
+        for i in range(1, q):
+            plt.axvline(rev_dd[i * len(dd)//q], label=f'qtile-{i}/{q}', c=colors[i])
+        plt.legend()
 
 if __name__ == '__main__':
     import os
