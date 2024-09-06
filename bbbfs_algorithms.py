@@ -19,12 +19,16 @@ from networkit.graph import Graph
 # I don't know why we use this... is it just a data structure that we can choose
 # a random item from efficiently? It's literally a set that we can sample a random
 # elt from
+# It's actually kinda like a list dict hybrid huh.
 class ListDict(object):
     def __init__(self, intial_items=[]):
         self.item_to_position = {}
         self.items = []
         for item in intial_items:
             self.add(item)
+
+    def getfirst(self):
+        return self.items[0]
 
     def __contains__(self, item):
         return item in self.item_to_position
@@ -39,6 +43,7 @@ class ListDict(object):
         self.item_to_position[item] = len(self.items)-1
 
     def remove(self, item):
+        """Remove an item from the list. O(1) time."""
         position = self.item_to_position.pop(item)
         last_item = self.items.pop()
         if position != len(self.items):
@@ -53,6 +58,39 @@ class ListDict(object):
     
     def __repr__(self):
         return str(self.items)
+
+from collections import OrderedDict
+class Queue:
+    def __init__(self, initial_data=None):
+        self.data = OrderedDict()
+        if initial_data is not None:
+            for item in initial_data:
+                self.add(item)
+    def add(self, item):
+        """Actually enqueue an item"""
+        key = item
+        if key in self.data:
+            self.data.move_to_end(key)
+        self.data[key] = True
+    def dequeue(self):
+        try:
+            return self.data.popitem(last=False)[0]
+        except KeyError:
+            print("Empty queue")
+    def remove(self, item):
+        try:
+            del self.data[item]
+        except KeyError:
+            print(f"Item {item} not in queue")
+    def __len__(self):
+        return len(self.data)
+    def __repr__(self):
+        return f"Queue({self.data.items()})"
+    def __iter__(self):
+        return iter(self.data.keys())
+    def __contains__(self, item):
+        return item in self.data
+
 
 def approx_average_case_old(g, s, t):
     if s == t:
@@ -101,7 +139,7 @@ class BFS:
         # In general queue[layer_i] gets eventually converted into
         # seen[w in layer_i] = i.
         # queue will only have up to two active keys at a time, layer_i and layer_i+1
-        self.queue = {0: ListDict([s])}
+        self.queue = {0: Queue([s])}
         self.seen = {s: 0}
         self.expanded = set()
         self.node_to_parent = {s: None}
@@ -180,8 +218,9 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
             # pop a random element from the list of the current layer
             layer = list(bfs.queue.keys())[0]
 
-            v = bfs.queue[layer].choose_random_item()
-            bfs.queue[layer].remove(v)
+            # v = bfs.queue[layer].choose_random_item()
+            # bfs.queue[layer].remove(v)
+            v = bfs.queue[layer].dequeue()
             bfs.expanded.add(v)
 
 
@@ -197,7 +236,7 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
                     bfs.seen[w] = layer + 1
                     bfs.node_to_parent[w] = v
                     if layer + 1 not in bfs.queue:
-                        bfs.queue[layer + 1] = ListDict([])
+                        bfs.queue[layer + 1] = Queue([])
                     bfs.queue[layer + 1].add(w)
 
             # delete i layer if exhausted; i+1 remains
@@ -217,7 +256,7 @@ class BiBFS_ExactExpandSmallerQueue(BiBFS_VertexBalancedApproximate):
             return
 
         # pick the smaller queue front - layer1 is the smaller one
-        if len(self.sBFS.queue[layer1]) > len(self.tBFS.queue[layer2]):
+        if len(self.sBFS.queue[layer1]) < len(self.tBFS.queue[layer2]):
             bfs, other_bfs = self.sBFS, self.tBFS
         else:
             bfs, other_bfs = self.tBFS, self.sBFS
@@ -285,15 +324,15 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
     class Container:
         bfs: BFS
         v_curr: int
-        E_curr: ListDict
+        E_curr: Queue
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # self.container_s = {'bfs': self.sBFS, 'v_curr': self.sBFS.s, 'E_curr': self.g.edges(self.s)}
         # self.container_t = {'bfs': self.tBFS, 'v_curr': self.tBFS.s, 'E_curr': self.g.edges(self.t)}
 
-        self.container_s = self.Container(self.sBFS, None, ListDict([]))
-        self.container_t = self.Container(self.tBFS, None, ListDict([]))
+        self.container_s = self.Container(self.sBFS, None, Queue([]))
+        self.container_t = self.Container(self.tBFS, None, Queue([]))
 
         self.edge_visited_count = 0
         # self.s_curr = self.s
@@ -317,15 +356,17 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
 
             # if the current edge list is empty, get a new one
             if len(c.E_curr) == 0:
-                c.v_curr = bfs.queue[layer].choose_random_item()
-                bfs.queue[layer].remove(c.v_curr)
+                # c.v_curr = bfs.queue[layer].choose_random_item()
+                # bfs.queue[layer].remove(c.v_curr)
+                c.v_curr = bfs.queue[layer].dequeue()
                 bfs.expanded.add(c.v_curr)
-                c.E_curr = ListDict(self.g.iterNeighbors(c.v_curr))
+                c.E_curr = Queue(self.g.iterNeighbors(c.v_curr))
                 
 
             # pop a random edge from the current edge list
-            w = c.E_curr.choose_random_item()
-            c.E_curr.remove(w)
+            # w = c.E_curr.choose_random_item()
+            # c.E_curr.remove(w)
+            w = c.E_curr.dequeue()
             self.edge_visited_count += 1
             bfs.work += 1
             if w in other_bfs.seen:
@@ -336,7 +377,7 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
                 bfs.seen[w] = layer + 1
                 bfs.node_to_parent[w] = c.v_curr
                 if layer + 1 not in bfs.queue:
-                    bfs.queue[layer + 1] = ListDict([])
+                    bfs.queue[layer + 1] = Queue([])
                 bfs.queue[layer + 1].add(w)
             
             # if the queue layer i is exhausted and so is the current edge list, delete layer i
@@ -369,8 +410,9 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
                 layer = list(bfs.queue.keys())[0]
 
             # pop a random element from the list of the current layer
-            v = bfs.queue[layer].choose_random_item()
-            bfs.queue[layer].remove(v)
+            # v = bfs.queue[layer].choose_random_item()
+            # bfs.queue[layer].remove(v)
+            v = bfs.queue[layer].dequeue()
             bfs.expanded.add(v)
 
 
@@ -385,7 +427,7 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
                     bfs.seen[w] = layer + 1
                     bfs.node_to_parent[w] = v
                     if layer + 1 not in bfs.queue:
-                        bfs.queue[layer + 1] = ListDict([])
+                        bfs.queue[layer + 1] = Queue([])
                     bfs.queue[layer + 1].add(w)
 
             # delete i layer if exhausted; i+1 remains
@@ -410,8 +452,9 @@ class BiBFS_LayerbalancedFull(BiBFS_Layerbalanced):
                 layer = list(bfs.queue.keys())[0]
 
             # pop a random element from the list of the current layer
-            v = bfs.queue[layer].choose_random_item()
-            bfs.queue[layer].remove(v)
+            # v = bfs.queue[layer].choose_random_item()
+            # bfs.queue[layer].remove(v)
+            v = bfs.queue[layer].dequeue()
             bfs.expanded.add(v)
 
 
@@ -427,7 +470,7 @@ class BiBFS_LayerbalancedFull(BiBFS_Layerbalanced):
                     bfs.seen[w] = layer + 1
                     bfs.node_to_parent[w] = v
                     if layer + 1 not in bfs.queue:
-                        bfs.queue[layer + 1] = ListDict([])
+                        bfs.queue[layer + 1] = Queue([])
                     bfs.queue[layer + 1].add(w)
 
             # delete i layer if exhausted; i+1 remains
