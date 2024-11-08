@@ -15,7 +15,9 @@ graph_names.sort()
 
 df_stats = pd.read_csv(p + 'output_data/overall_df_stats.csv')
 
-
+df_tbl = pd.read_csv('../blasius_tbl.csv')
+del df_tbl['Unnamed: 0']
+input_names_real_filtered = df_tbl.loc[df_tbl['type'] == 'real']['graph'].tolist()  # This is the 2740 blasius subset
 
 import networkit as nk
 

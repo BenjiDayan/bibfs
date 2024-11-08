@@ -1,7 +1,7 @@
 <!-- Rscript R/bbbfs.R -->
 
 
-> source("R/helper/load_helpers.R")
+> foo
 > source("R/bbbfs.R")
 >
 

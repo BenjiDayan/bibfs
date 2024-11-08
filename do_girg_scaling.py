@@ -9,10 +9,24 @@ import numpy as np
 import random
 import generators
 from bbbfs_algorithms import BiBFS_LayerbalancedFull, BiBFS_ExactExpandSmallerQueueBetter
+import uuid
 
-# p = '../M3_ext_val_data/chunglu_scaling_queue_fixed_randomised_edges/'
-# p = '../M3_ext_val_data/chunglu_scaling_max_degrees_QBfixed/'
-p = '../M3_ext_val_data/chunglu_scaling_no_early_stopping_25_09_2024/'
+# p = '../M3_ext_val_data/girgs3_scaling/'
+# p = '../M3_ext_val_data/girgs_scaling_max_degrees_SQBfixed/'
+p = '../M3_ext_val_data/girgs_scaling_no_early_stopping_25_09_2024/'
+# fpaths = '../M3_ext_val_data/girgs3/'
+fpaths = '../M3_ext_val_data/girgs3_mini/'
+
+
+def read_girg(fn):
+    fn_temp = str(uuid.uuid4())
+    with open(fn, 'r') as f:
+        lines = f.readlines()
+        with open(fn_temp, 'w') as f2:
+            f2.write('\n'.join(lines[2:]))
+    g = nk.graphio.EdgeListReader(' ', 0).read(fn_temp)
+    os.remove(fn_temp)
+    return g
 
 def process_graph(graph_name, g=None, **kwargs):
     if g is None:
@@ -21,7 +35,7 @@ def process_graph(graph_name, g=None, **kwargs):
         algos=bbbfa.ALGOS,
         # algos=[bbbfa.BiBFS_ExactExpandSmallerQueueBetter],
         record_max_degrees=True,
-        early_stopping=False,               
+        early_stopping=False,                    
         **kwargs)
     df['graph'] = graph_name
     os.makedirs(p, exist_ok=True)
@@ -30,15 +44,12 @@ def process_graph(graph_name, g=None, **kwargs):
     with open(p + graph_name + '_info.txt', 'w') as file:
         file.write(f'{g.numberOfNodes()} nodes, {g.numberOfEdges()} edges')
 
-def process_graph2(n, deg, ple, seed, **kwargs):
-    graph_name = f'cl_n={n}_deg={deg}_ple={ple}_seed={seed}'
-    nk.setSeed(seed, True)
-    np.random.seed(seed)
-    random.seed(seed)
-    g = generators.generate_chung_lu(n, tau=ple, desiredAvgDegree=deg)
-    g = generators.get_largest_component(g, relabel=True)
 
-    process_graph(graph_name, g, n_pairs=100, **kwargs)
+def process_graph2(fn):
+    g = read_girg(fn)
+    g = generators.get_largest_component(g, relabel=True)
+    graph_name = fn.split('/')[-1][:-4]
+    process_graph(graph_name, g, n_pairs=100)
 
 
 if __name__ == '__main__':
@@ -47,18 +58,12 @@ if __name__ == '__main__':
     # outnames = [x[:-4] for x in outnames]
     # graph_names = set(utils.input_names_real_with_cl) - set(outnames)
 
-    ples = [2.0, 2.1, 2.3, 2.5, 2.7, 2.9, 3.0, 3.3, 4.0, 6.0, 9.0, 13.0, 18.0, 25.0]
-    ns = [100, 150, 300, 500, 750, 1000, 1500, 3000, 5000, 7500, 10000, 15000, 30000, 50000, 80000]
-    # ns = [1000, 1500]
-    # ns = [80000]
-    degs = [10, 20, 30]
-    seeds = [1,2,3]
-
-    import itertools
-    args = list(itertools.product(ns, degs, ples, seeds))
+    import glob
+    args = glob.glob(fpaths + '*.txt')
+    args = [x for x in args if 'dim=2' in x]
     # results = list(tqdm(map(lambda x: process_graph2(*x), args), total=len(args)))
-    with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
-        results = list(tqdm(executor.map(process_graph2, *zip(*args)), total=len(args)))
+    with concurrent.futures.ProcessPoolExecutor(max_workers=6) as executor:
+        results = list(tqdm(executor.map(process_graph2, args), total=len(args)))
 
     # graph_names = utils.input_names_cl
     # print(graph_names)

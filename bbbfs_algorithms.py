@@ -148,12 +148,29 @@ class BFS:
 
 # I think this is equivalent to the vertex-balanced BFS for approximate shortest path
 class BiBFS:
-    def __init__(self, g, s, t):
+    def __init__(self, g, s, t, early_stopping=True):
         self.sBFS = BFS(g, s)
         self.tBFS = BFS(g, t)
         self.g = g
+        self.early_stopping = early_stopping
 
-    def terminate(self, bfs, other_bfs, intersection_point=None):
+    def terminate(self, bfs, other_bfs, intersection_point=None, record_max_degrees=False):
+        if record_max_degrees:
+            # NB bfs.expanded includes the final vertex, which may not be "fully expanded"
+            # all algos employ an edgewise early stopping criterion of some sort - self.terminate
+            # is called on finding an intersection point.
+            max_expanded_degree = 0
+            for v in bfs.expanded:
+                max_expanded_degree = max(max_expanded_degree, self.g.degree(v))
+            for v in other_bfs.expanded:
+                max_expanded_degree = max(max_expanded_degree, self.g.degree(v))
+            self.max_expanded_degree = max_expanded_degree
+
+            max_degree = 0
+            for v in self.g.iterNodes():
+                max_degree = max(max_degree, self.g.degree(v))
+            self.max_degree = max_degree
+
         self.work = self.sBFS.work + self.tBFS.work
         if intersection_point is None:
             return
@@ -179,12 +196,13 @@ class BiBFS:
         self.intersection_point = intersection_point
         self.dist = len(self.path) - 1
 
-    def run(self):
+    def run(self, seed=42, record_max_degrees=False):
+        np.random.seed(seed)
         if self.sBFS.s == self.tBFS.s:
-            self.terminate(self.sBFS, self.tBFS, self.sBFS.s)
+            self.terminate(self.sBFS, self.tBFS, self.sBFS.s, record_max_degrees=record_max_degrees)
             return True
 
-        return self.run_expansion_search()
+        return self.run_expansion_search(record_max_degrees=record_max_degrees)
 
 
         
@@ -212,7 +230,8 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
         else:
             return self.tBFS, self.sBFS
         
-    def run_expansion_search(self):
+    def run_expansion_search(self, record_max_degrees=False):
+        
         while self.sBFS.queue and self.tBFS.queue:
             bfs, other_bfs = self.choose_bfs()
             # pop a random element from the list of the current layer
@@ -221,15 +240,18 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
             # v = bfs.queue[layer].choose_random_item()
             # bfs.queue[layer].remove(v)
             v = bfs.queue[layer].dequeue()
-            bfs.expanded.add(v)
+            bfs.expanded.add(v)  # we won't fully expand if stop early but ah well.
 
-
-            for w in self.g.iterNeighbors(v):
+            nhbs_iter = np.random.permutation(list(self.g.iterNeighbors(v)))
+            for w in nhbs_iter:
                 bfs.work += 1
                 if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
                     bfs.seen[w] = layer + 1
                     bfs.node_to_parent[w] = v
-                    self.terminate(bfs, other_bfs, w)
+                    self.final_v_degree = self.g.degree(v)
+                    if not self.early_stopping:
+                        bfs.work += len(list(nhbs_iter))
+                    self.terminate(bfs, other_bfs, w, record_max_degrees=record_max_degrees)
                     return True
 
                 if w not in bfs.seen:
@@ -243,16 +265,17 @@ class BiBFS_VertexBalancedApproximate(BiBFS):
             if len(bfs.queue[layer]) == 0:
                 del bfs.queue[layer]
 
-        self.terminate(bfs, other_bfs, intersection_point=None)
+        self.final_v_degree = self.g.degree(v)
+        self.terminate(bfs, other_bfs, intersection_point=None, record_max_degrees=record_max_degrees)
         return False
 
 class BiBFS_ExactExpandSmallerQueue(BiBFS_VertexBalancedApproximate):
-    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential):
+    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=False):
         try:
             layer1 = list(self.sBFS.queue.keys())[0]
             layer2 = list(self.tBFS.queue.keys())[0]
         except IndexError:  # one of the queues is empty. direct edge guaranteed
-            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
             return
 
         # pick the smaller queue front - layer1 is the smaller one
@@ -264,43 +287,48 @@ class BiBFS_ExactExpandSmallerQueue(BiBFS_VertexBalancedApproximate):
 
         # expand all nodes in the smaller queue front, check for edge to other queue front
         for v in bfs.queue[layer1]:
-            for w in self.g.iterNeighbors(v):
+            bfs.expanded.add(v)  # for max expanded degree
+            nhbs_iter = np.random.permutation(list(self.g.iterNeighbors(v)))
+            for w in nhbs_iter:
                 bfs.work += 1
                 if w in other_bfs.queue[layer2]:
                     bfs.node_to_parent[w] = v
-                    super().terminate(bfs, other_bfs, w)
+                    self.final_v_degree = self.g.degree(v)
+                    if not self.early_stopping:
+                        bfs.work += len(list(nhbs_iter))
+                    super().terminate(bfs, other_bfs, w, record_max_degrees=record_max_degrees)
                     return
 
-        super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+        super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
 
 
 class BiBFS_ExactExpandSmallerQueueBetter(BiBFS_ExactExpandSmallerQueue):#
     """We actually don't need to expand smaller queue front if the intersection point was from
     inner to inner. We can just terminate immediately."""
-    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential):
+    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=False):
         try:
             layer1 = list(self.sBFS.queue.keys())[0]
             layer2 = list(self.tBFS.queue.keys())[0]
         except IndexError:  # one of the queues is empty. direct edge guaranteed
-            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
             return
         
         s_dist = self.sBFS.seen[intersection_point_potential]
         t_dist = self.tBFS.seen[intersection_point_potential]
         if s_dist == layer1 or t_dist == layer2:
             # super super terminate
-            return BiBFS_VertexBalancedApproximate.terminate(self, self.sBFS, self.tBFS, intersection_point_potential)
+            return BiBFS_VertexBalancedApproximate.terminate(self, self.sBFS, self.tBFS, intersection_point_potential, record_max_degrees=record_max_degrees)
     
-        return super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+        return super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
 
 
 class BiBFS_ExactCheckDirectEdges(BiBFS_VertexBalancedApproximate):
-    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential):
+    def terminate(self, bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=False):
         try:
             layer1 = list(self.sBFS.queue.keys())[0]
             layer2 = list(self.tBFS.queue.keys())[0]
         except IndexError:  # one of the queues is empty. direct edge guaranteed
-            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+            super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
             return
 
         # check for direct edges
@@ -310,11 +338,11 @@ class BiBFS_ExactCheckDirectEdges(BiBFS_VertexBalancedApproximate):
                 extra_work += 1
                 if self.g.hasEdge(u, v):
                     self.sBFS.node_to_parent[v] = u
-                    super().terminate(self.sBFS, self.tBFS, v)
+                    super().terminate(self.sBFS, self.tBFS, v, record_max_degrees=record_max_degrees)
                     self.work += extra_work
                     return
 
-        super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential)
+        super().terminate(bfs_potential, other_bfs_potential, intersection_point_potential, record_max_degrees=record_max_degrees)
         self.work += extra_work
         return
     
@@ -333,22 +361,17 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
 
         self.container_s = self.Container(self.sBFS, None, Queue([]))
         self.container_t = self.Container(self.tBFS, None, Queue([]))
-
         self.edge_visited_count = 0
-        # self.s_curr = self.s
-        # self.t_curr = self.t
-        # self.Es_curr = self.g.edges(self.s)
-        # self.Et_curr = self.g.edges(self.t)
 
     def get_containers(self):
+        """switch containers every edge visit - i.e. precise edge balance"""
         if self.edge_visited_count % 2 == 0:
             return self.container_s, self.container_t
         else:
             return self.container_t, self.container_s
 
         
-    # TODO finish this - it's not complete.
-    def run_expansion_search(self):
+    def run_expansion_search(self, record_max_degrees=False):
         while (self.sBFS.queue and self.tBFS.queue):
             c, c_other = self.get_containers()
             bfs, other_bfs = c.bfs, c_other.bfs
@@ -359,8 +382,8 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
                 # c.v_curr = bfs.queue[layer].choose_random_item()
                 # bfs.queue[layer].remove(c.v_curr)
                 c.v_curr = bfs.queue[layer].dequeue()
-                bfs.expanded.add(c.v_curr)
-                c.E_curr = Queue(self.g.iterNeighbors(c.v_curr))
+                bfs.expanded.add(c.v_curr)  # we won't fully expand if stop early but ah well.
+                c.E_curr = Queue(np.random.permutation(list(self.g.iterNeighbors(c.v_curr))))
                 
 
             # pop a random edge from the current edge list
@@ -371,7 +394,8 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
             bfs.work += 1
             if w in other_bfs.seen:
                 bfs.node_to_parent[w] = c.v_curr
-                self.terminate(bfs, other_bfs, w)
+                self.final_v_degree = self.g.degree(c.v_curr)
+                self.terminate(bfs, other_bfs, w, record_max_degrees=record_max_degrees)
                 return True
             if w not in bfs.seen:
                 bfs.seen[w] = layer + 1
@@ -385,7 +409,8 @@ class BiBFS_EdgeBalancedApproximate(BiBFS):
             if len(bfs.queue[layer]) == 0 and len(c.E_curr) == 0:
                     del bfs.queue[layer]
 
-        self.terminate(bfs, other_bfs, intersection_point=None)
+        self.final_v_degree = self.g.degree(c.v_curr)
+        self.terminate(bfs, other_bfs, intersection_point=None, record_max_degrees=record_max_degrees)
         return False
 
 
@@ -401,7 +426,7 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
         else:
             return self.tBFS, self.sBFS
         
-    def run_expansion_search(self):
+    def run_expansion_search(self, record_max_degrees=False):
         layer = None
         while self.sBFS.queue and self.tBFS.queue:
             # just started BiBFS, or just deleted layer.
@@ -413,14 +438,18 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
             # v = bfs.queue[layer].choose_random_item()
             # bfs.queue[layer].remove(v)
             v = bfs.queue[layer].dequeue()
-            bfs.expanded.add(v)
+            bfs.expanded.add(v)  # we won't fully expand if stop early but ah well.
 
 
-            for w in self.g.iterNeighbors(v):
+            nhbs_iter = np.random.permutation(list(self.g.iterNeighbors(v)))
+            for w in nhbs_iter:
                 bfs.work += 1  #
                 if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
                     bfs.node_to_parent[w] = v
-                    self.terminate(bfs, other_bfs, w)
+                    self.final_v_degree = self.g.degree(v)
+                    if not self.early_stopping:
+                        bfs.work += len(list(nhbs_iter))
+                    self.terminate(bfs, other_bfs, w, record_max_degrees=record_max_degrees)
                     return True
 
                 if w not in bfs.seen:
@@ -434,37 +463,35 @@ class BiBFS_Layerbalanced(BiBFS_VertexBalancedApproximate):
             if len(bfs.queue[layer]) == 0:
                 del bfs.queue[layer]
 
-        self.terminate(bfs, other_bfs, intersection_point=None)
+        self.final_v_degree = self.g.degree(v)
+        self.terminate(bfs, other_bfs, intersection_point=None, record_max_degrees=record_max_degrees)
         return False
     
 class BiBFS_LayerbalancedFull(BiBFS_Layerbalanced):
     """Like LB, but will finish expanding the current layer even after finding an intersection point"""
-    def run_expansion_search(self):
+    def run_expansion_search(self, record_max_degrees=False):
         layer = None
         found_intersection_point = None
         while self.sBFS.queue and self.tBFS.queue:
             # just started BiBFS, or just deleted layer.
             if layer is None or layer not in bfs.queue:
                 if found_intersection_point is not None:
-                    self.terminate(bfs, other_bfs, found_intersection_point)
+                    self.terminate(bfs, other_bfs, found_intersection_point, record_max_degrees=record_max_degrees)
                     return True
                 bfs, other_bfs = self.choose_bfs()
                 layer = list(bfs.queue.keys())[0]
 
-            # pop a random element from the list of the current layer
-            # v = bfs.queue[layer].choose_random_item()
-            # bfs.queue[layer].remove(v)
+
             v = bfs.queue[layer].dequeue()
             bfs.expanded.add(v)
 
-
-            for w in self.g.iterNeighbors(v):
+            for w in np.random.permutation(list(self.g.iterNeighbors(v))):
                 bfs.work += 1  #
                 if w in other_bfs.seen:  # either a hop or a direct edge - terminate?
                     bfs.node_to_parent[w] = v
-                    # self.terminate(bfs, other_bfs, w)
-                    # return True
-                    found_intersection_point = w
+                    if not found_intersection_point:
+                        found_intersection_point = w
+                        self.final_v_degree = self.g.degree(v)
 
                 if w not in bfs.seen:
                     bfs.seen[w] = layer + 1
@@ -478,10 +505,10 @@ class BiBFS_LayerbalancedFull(BiBFS_Layerbalanced):
                 del bfs.queue[layer]
 
         if found_intersection_point is not None:
-            self.terminate(bfs, other_bfs, found_intersection_point)
+            self.terminate(bfs, other_bfs, found_intersection_point, record_max_degrees=record_max_degrees)
             return True
 
-        self.terminate(bfs, other_bfs, intersection_point=None)
+        self.terminate(bfs, other_bfs, intersection_point=None, record_max_degrees=record_max_degrees)
         return False
 
 def approx_average_case(g, s, t):
@@ -545,6 +572,10 @@ def approx_average_case(g, s, t):
 
 
 import benji_utils as utils
+
+# ALGOS = [BiBFS_Layerbalanced, BiBFS_LayerbalancedFull, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueueBetter, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate]
+ALGOS = [BiBFS_Layerbalanced, BiBFS_LayerbalancedFull, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueueBetter]
+
 
 def run_for_row(row, algo=BiBFS):
     s, t = row.s, row.t
@@ -628,23 +659,28 @@ def all_pairs(n):
     return [(i, j) for i in range(n) for j in range(i+1, n)]
 
 
-def run_for_pairs(g, pairs, algo_class=BiBFS_VertexBalancedApproximate, do_print=False):
+def run_for_pairs(g, pairs, algo_class=BiBFS_VertexBalancedApproximate, do_print=False, name='graph', record_max_degrees=False, early_stopping=True):
     new_rows = []
     for s, t in pairs if not do_print else tqdm(pairs):
-        algo = algo_class(g, s, t)
+        algo = algo_class(g, s, t, early_stopping=early_stopping)
         st = time.time()
-        found = algo.run()
+        found = algo.run(record_max_degrees=record_max_degrees)
         rt = time.time() - st
 
-        new_row = {'s': s, 't': t, 'algo': f'python-{algo.__class__.__name__}', 'search_space': algo.work, 'dist': algo.dist if found else -1, 'time_dist': rt}
+        new_row = {'s': s, 't': t, 'algo': f'python-{algo.__class__.__name__}', 'search_space': algo.work, 'dist': algo.dist if found else -1, 'time_dist': rt, 'graph': name}
+        if record_max_degrees:
+            new_row['max_degree'] = algo.max_degree
+            new_row['max_expanded_degree'] = algo.max_expanded_degree
+            new_row['final_v_degree'] = algo.final_v_degree
         new_rows.append(new_row)
     return new_rows
 
 
 # Does a comparison of algos on a graph vs CL counterpart
 def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
-                  algos=[BiBFS_Layerbalanced, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
-                  do_print=False):
+                  algos=ALGOS,
+                  do_print=False,
+                  name='graph'):
     random.seed(seed)
     nk.setSeed(seed, True)
 
@@ -665,8 +701,8 @@ def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
     pairs = random_sample_pairs(n, n_pairs)
     rows = []
     for algo in algos:
-        rows += run_for_pairs(g, pairs, algo, do_print=do_print)
-        rows += run_for_pairs(g_cl, pairs, algo, do_print=do_print)
+        rows += run_for_pairs(g, pairs, algo, do_print=do_print, name=name)
+        rows += run_for_pairs(g_cl, pairs, algo, do_print=do_print, name=f'{name}_cl')
     df = pd.DataFrame(rows)
     # rows = run_for_pairs(g, pairs, BiBFS_VertexBalancedApproximate)
     # rows_cl = run_for_pairs(g_cl, pairs, BiBFS_VertexBalancedApproximate)
@@ -675,7 +711,9 @@ def do_comparison(g, seed=42, fit_iters=3, n_pairs=1000, g_cl=None,
 
 def run_algos_on_g(g, seed=42, n_pairs=1000,
         algos=[BiBFS_Layerbalanced, BiBFS_LayerbalancedFull, BiBFS_VertexBalancedApproximate, BiBFS_ExactExpandSmallerQueueBetter, BiBFS_ExactExpandSmallerQueue, BiBFS_ExactCheckDirectEdges, BiBFS_EdgeBalancedApproximate],
-        do_print=False):
+        do_print=False,
+        record_max_degrees=False,
+        early_stopping=True):
     random.seed(seed)
     nk.setSeed(seed, True)
     n, e = g.numberOfNodes(), g.numberOfEdges()
@@ -683,7 +721,7 @@ def run_algos_on_g(g, seed=42, n_pairs=1000,
     pairs = random_sample_pairs(n, n_pairs)
     rows = []
     for algo in algos:
-        rows += run_for_pairs(g, pairs, algo, do_print=do_print)
+        rows += run_for_pairs(g, pairs, algo, do_print=do_print, record_max_degrees=record_max_degrees, early_stopping=early_stopping)
     df = pd.DataFrame(rows)
     return df
 
@@ -701,10 +739,8 @@ def do_real_fake_comparison(g_name, **kwargs):
     except:
         print(f'No cl graph for {g_name}')
         return
-    df = do_comparison(g, g_cl=g_cl, **kwargs)
-    df['graph'] = g_name
+    df = do_comparison(g, g_cl=g_cl, name=g_name, **kwargs)
     return df
-
 
 
 
